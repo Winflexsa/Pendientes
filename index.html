@@ -11,13 +11,16 @@
 <script>
 /* === MODO CELULAR: solo en telefonos (tactil + lado menor < 600px). Tablets y PC no cambian. === */
 (function(){try{
+  /* Pendientes usa su propia preferencia (no la compartida wf_vista de las otras apps) */
+  var K='wf_pend_vista';
   var p=new URLSearchParams(location.search).get('vista');
-  if(p==='celu'||p==='full')localStorage.setItem('wf_vista',p);
-  if(p==='auto')localStorage.removeItem('wf_vista');
-  var pref=localStorage.getItem('wf_vista');
+  if(p==='celu'||p==='full')localStorage.setItem(K,p);
+  if(p==='auto')localStorage.removeItem(K);
+  var pref=localStorage.getItem(K);
   var lado=Math.min(screen.width||9999,screen.height||9999);
+  var ua=navigator.userAgent||'';
   var tactil=(navigator.maxTouchPoints>0)||(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
-  var esTel=!!tactil&&lado<600;
+  var esTel=/Android.+Mobile|iPhone|iPod|Windows Phone/i.test(ua)||(!!tactil&&lado<600);
   window.WF_ES_TEL=esTel;
   if(pref==='celu'||(esTel&&pref!=='full')){document.documentElement.classList.add('celu');
     var m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute('content','#ffffff');
@@ -585,7 +588,7 @@ app.addEventListener('click',function(e){
   if(a==='nueva'){sheet='nueva';refocus='.sheet input[name="t"]';return render()}
   if(a==='mas'){sheet='mas';return render()}
   if(a==='cerrarsheet'){if(e.target===b){sheet=null;return render()}return}
-  if(a==='vista'){try{localStorage.setItem('wf_vista',b.dataset.v)}catch(x){}location.href=location.pathname;return}
+  if(a==='vista'){try{localStorage.setItem('wf_pend_vista',b.dataset.v)}catch(x){}location.href=location.pathname;return}
   if(a==='tab'){sheet=null;window.scrollTo(0,0);tab=b.dataset.k;return render()}
   if(a==='open'){return openTask(id)}
   if(a==='close'){return closeDetail()}
