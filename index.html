@@ -20,7 +20,16 @@
   var esTel=!!tactil&&lado<600;
   window.WF_ES_TEL=esTel;
   if(pref==='celu'||(esTel&&pref!=='full')){document.documentElement.classList.add('celu');
-    var m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute('content','#ffffff');}
+    var m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute('content','#ffffff');
+    /* si Chrome abre en "sitio de escritorio" (viewport ancho), se agranda igual que en las otras apps */
+    var ajusta=function(){try{
+      var sw=screen.width||0, iw=window.innerWidth||0, de=document.documentElement;
+      if(window.matchMedia&&matchMedia('(orientation:landscape)').matches)sw=Math.max(screen.width,screen.height);else sw=Math.min(screen.width,screen.height);
+      var z=(sw&&iw>sw*1.2)?(iw/sw):1;
+      de.style.zoom=z>1?z:'';
+      if(z>1)de.classList.add('celu-zoom');else de.classList.remove('celu-zoom');
+    }catch(e){}};
+    ajusta();window.addEventListener('resize',ajusta);window.addEventListener('orientationchange',function(){setTimeout(ajusta,250)});}
 }catch(e){}})();
 </script>
 <link rel="manifest" href="manifest.webmanifest">
@@ -318,6 +327,7 @@ html.celu .dpage .dc{padding:10px 13px;font-size:14.5px;border-radius:11px}
 html.celu .dpage .df{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))}
 html.celu .dpage .df .btn{padding:14px 10px;font-size:15px;border-radius:12px}
 html.celu .dpage .df .btn:first-child{grid-column:1/-1;font-size:16.5px;padding:16px}
+.vista-sw{position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--hh) + 10px);z-index:45;border:0;background:var(--verde-osc);color:#fff;font-weight:700;font-size:16px;padding:14px 22px;border-radius:30px;box-shadow:0 8px 22px rgba(18,122,74,.4)}
 </style>
 </head>
 <body>
@@ -496,6 +506,7 @@ function render(){
     '<section class="col c-hoy'+(tab==='hoy'?' on':'')+'"><h2>Para hoy<span class="n">'+hoy.length+'</span></h2><div class="scroll">'+colHoy(hoy)+'</div></section>'+
     '<section class="col c-prox'+(tab==='prox'?' on':'')+'"><h2>Próximas<span class="n">'+fut.length+'</span></h2><div class="scroll">'+colProx(fut)+'</div></section>'+
     '<section class="col c-done'+(tab==='done'?' on':'')+'"><h2>Hechas<span class="n">'+done.length+'</span></h2><div class="scroll">'+colDone(done)+'</div></section></main>';
+  if(window.WF_ES_TEL)h+='<button class="vista-sw" data-a="vista" data-v="celu">📱 Ver versión celular</button>';
   if(undo)h+='<div class="toast"><span>'+esc(undo.msg)+'</span>'+(undo.fn?'<button data-a="undo">Deshacer</button>':'')+'</div>';
   var sc=[].map.call(app.querySelectorAll('.scroll'),function(e){return e.scrollTop}),dsc=app.querySelector('.db');dsc=dsc?dsc.scrollTop:0;
   app.innerHTML=h;
