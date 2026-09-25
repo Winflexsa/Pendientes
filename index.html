@@ -215,6 +215,12 @@ header{background:var(--panel);border-bottom:3px solid var(--verde-osc);padding:
 .toast span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .toast button{border:0;background:none;color:var(--verde-b);font-weight:700}
 @media (min-width:981px){.toast{bottom:24px}}
+.dpage{max-width:720px;margin:0 auto;background:var(--panel);min-height:calc(100vh - var(--hh));display:flex;flex-direction:column;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+.dpage .dh{padding:20px 20px 14px;border-top:0}
+.dpage .dh{border-left:6px solid var(--naranja)} .dpage .dh.a7{border-left-color:var(--rojo)} .dpage .dh.dn{border-left-color:var(--verde)} .dpage .dh.ft{border-left-color:var(--verde-b)}
+.dpage .dh h3{font-size:22px}
+.dpage .db{flex:1;overflow:visible;padding:4px 20px 24px}
+.dpage .df{position:sticky;bottom:0;background:var(--panel);padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px))}
 </style>
 </head>
 <body>
@@ -234,6 +240,7 @@ var ICON='<svg class="appico" viewBox="0 0 100 100" aria-hidden="true"><defs><li
 
 /* ============ ESTADO ============ */
 var st=null,ver=null,rev=0,pushedRev=0,pushing=false,online=null,timer=null;
+var DETAIL=null;try{DETAIL=new URLSearchParams(location.search).get('t')}catch(e){}
 var tab='hoy',q='',openId=null,editId=null,armed=null,showDone=25,menu=false,undo=null,refocus=null,pendingRender=false;
 var app=document.getElementById('app');
 var CHECK='<svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg>';
@@ -350,6 +357,7 @@ function colDone(list){
   return h;
 }
 function render(){
+  if(DETAIL)return renderDetail();
   pendingRender=false;
   var all=st.tasks.filter(match);
   var hoy=all.filter(isToday),fut=all.filter(isFut),done=all.filter(function(t){return t.done});
@@ -369,7 +377,6 @@ function render(){
     '<section class="col c-hoy'+(tab==='hoy'?' on':'')+'"><h2>Para hoy<span class="n">'+hoy.length+'</span></h2><div class="scroll">'+colHoy(hoy)+'</div></section>'+
     '<section class="col c-prox'+(tab==='prox'?' on':'')+'"><h2>Próximas<span class="n">'+fut.length+'</span></h2><div class="scroll">'+colProx(fut)+'</div></section>'+
     '<section class="col c-done'+(tab==='done'?' on':'')+'"><h2>Hechas<span class="n">'+done.length+'</span></h2><div class="scroll">'+colDone(done)+'</div></section></main>';
-  var ot=openId&&find(openId);if(ot)h+=drawer(ot);else openId=null;
   if(undo)h+='<div class="toast"><span>'+esc(undo.msg)+'</span>'+(undo.fn?'<button data-a="undo">Deshacer</button>':'')+'</div>';
   var sc=[].map.call(app.querySelectorAll('.scroll'),function(e){return e.scrollTop}),dsc=app.querySelector('.db');dsc=dsc?dsc.scrollTop:0;
   app.innerHTML=h;
@@ -401,6 +408,7 @@ function drawer(t){
   h+='</div><div class="df"><button class="btn" data-a="done" data-id="'+t.id+'">'+(t.done?'Reabrir':'✓ Dar por cumplida')+'</button>'+
      (editId===t.id?'':'<button class="btn sec" data-a="edit" data-id="'+t.id+'">Editar</button>')+
      '<button class="btn sec del'+(armed===t.id?' armed':'')+'" data-a="del" data-id="'+t.id+'">'+(armed===t.id?'¿Borrar?':'Borrar')+'</button></div></aside>';
+  if(DETAIL)h=h.replace(/^<div class="ov"[^>]*><\/div><aside class="dr"[^>]*>/,'<div class="dpage">').replace(/<\/aside>$/,'</div>');
   return h;
 }
 function toast(msg,fn){undo={msg:msg,fn:fn};clearTimeout(toast.t);toast.t=setTimeout(function(){undo=null;safeRender()},5000)}
@@ -413,14 +421,14 @@ app.addEventListener('click',function(e){
   if(a!=='menu'&&menu)menu=false;
   if(a==='menu'){menu=!menu;return render()}
   if(a==='tab'){tab=b.dataset.k;return render()}
-  if(a==='open'){openId=id;editId=null;return render()}
-  if(a==='close'){openId=null;editId=null;return render()}
-  if(a==='done'&&t){var prev=t.done;t.done=t.done?0:Date.now();t.u=Date.now();if(t.done){openId=null;toast('Hecha: '+t.t,function(){t.done=prev;t.u=Date.now()})}return change()}
+  if(a==='open'){return openTask(id)}
+  if(a==='close'){return closeDetail()}
+  if(a==='done'&&t){var prev=t.done;t.done=t.done?0:Date.now();t.u=Date.now();if(t.done){if(DETAIL){change();return flushAndClose()}toast('Hecha: '+t.t,function(){t.done=prev;t.u=Date.now()})}return change()}
   if(a==='prio'&&t){t.p=!t.p;t.u=Date.now();return change()}
   if(a==='edit'){editId=id;refocus='[data-form="edit"] input[name="t"]';return render()}
   if(a==='cancel'){editId=null;return render()}
   if(a==='del'&&t){if(armed!==id){armed=id;return render()}armed=null;openId=null;var idx=st.tasks.indexOf(t);st.tasks.splice(idx,1);st.del=st.del||{};st.del[id]=Date.now();
-    toast('Borrada: '+t.t,function(){delete st.del[id];t.u=Date.now();st.tasks.splice(idx,0,t)});return change()}
+    if(DETAIL){change();return flushAndClose()}toast('Borrada: '+t.t,function(){delete st.del[id];t.u=Date.now();st.tasks.splice(idx,0,t)});return change()}
   if(a==='dellog'&&t){t.log.splice(+b.dataset.i,1);t.u=Date.now();return change()}
   if(a==='setf'&&t){t.f=b.dataset.f;t.u=Date.now();return change()}
   if(a==='undo'&&undo){var f=undo.fn;undo=null;f();return change()}
@@ -446,7 +454,39 @@ app.addEventListener('submit',function(e){
     t.log.push({t:'→ Derivada: '+v+(sf?' ('+fmtF(sf)+')':''),ts:now});t.u=now;refocus='[data-form="sub"] input[name="t"]';return change()}
   if(k==='edit'&&t){var nt=f.elements.t.value.trim();if(!nt)return;t.t=nt;t.d=f.elements.d.value.trim();t.u=now;editId=null;return change()}
 });
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){if(openId){openId=null;editId=null;render()}else if(menu){menu=false;render()}}});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){if(DETAIL){if(editId){editId=null;render()}else closeDetail()}else if(menu){menu=false;render()}}});
+window.addEventListener('storage',function(e){
+  if(e.key!==LS||!e.newValue||!st)return;
+  try{var o=JSON.parse(e.newValue);var before=JSON.stringify(st.tasks)+JSON.stringify(st.del||{});st=merge(st,o.st);
+    if(o.ver!=null&&(ver==null||o.ver>ver))ver=o.ver;
+    if(JSON.stringify(st.tasks)+JSON.stringify(st.del||{})!==before){rev++;schedule(1500)}
+    safeRender()}catch(x){}
+});
+function isMobile(){return matchMedia('(max-width:980px)').matches||matchMedia('(pointer:coarse)').matches}
+function openTask(id){
+  var url='?t='+encodeURIComponent(id);
+  if(isMobile()){location.href=url;return}
+  var W=580,Hh=Math.min(860,(screen.availHeight||900)-60),L=Math.max(0,(screen.availLeft||0)+(screen.availWidth||1400)-W-40),T=(screen.availTop||0)+30;
+  var w=window.open(url,'pend_'+id,'popup=yes,width='+W+',height='+Hh+',left='+L+',top='+T);
+  if(w){try{w.focus()}catch(x){}}else location.href=url;
+}
+function closeDetail(){
+  if(window.opener){try{window.close()}catch(x){}}
+  setTimeout(function(){if(!window.closed){if(document.referrer&&document.referrer.indexOf(location.origin)===0&&history.length>1)history.back();else location.href='./'}},150);
+}
+function flushAndClose(){clearTimeout(timer);push();var t0=Date.now();(function w(){if(rev===pushedRev||Date.now()-t0>2500)closeDetail();else setTimeout(w,150)})()}
+function renderDetail(){
+  pendingRender=false;
+  var t=st&&find(DETAIL);
+  var h='<header><div class="brand">'+ICON+'<h1>Pendientes<small>Seguimiento de tarea</small></h1></div><img class="hwm" src="'+WM+'" alt="Winflex S.A."><div class="spacer"></div><span id="sync" class="sync"></span></header>';
+  if(t){document.title=t.t+' – Pendientes';h+=drawer(t)}
+  else h+='<div class="dpage"><div class="nada" style="padding:48px 20px"><b>'+(st?'Esta tarea ya no existe':'Cargando…')+'</b><button class="btn sec" data-a="close" style="margin-top:12px">Volver</button></div></div>';
+  if(undo)h+='<div class="toast"><span>'+esc(undo.msg)+'</span>'+(undo.fn?'<button data-a="undo">Deshacer</button>':'')+'</div>';
+  app.innerHTML=h;
+  var hd=app.querySelector('header');if(hd)document.documentElement.style.setProperty('--hh',hd.offsetHeight+'px');
+  setSync(online===false?'off':rev!==pushedRev?'saving':online?'ok':'');
+  if(refocus){var el=app.querySelector(refocus);if(el)el.focus({preventScroll:true});refocus=null}
+}
 document.addEventListener('focusout',function(){setTimeout(function(){if(pendingRender&&!typing())render()},50)});
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){refresh();safeRender()}else if(rev!==pushedRev)push()});
 window.addEventListener('online',refresh);
